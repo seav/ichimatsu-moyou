@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+svg {
+  width: 100vh;
+}
+
+rect {
+  fill: #202b5a;
+}
+</style>
+</head>
+<body>
+  <svg viewBox="-600 -600 1200 1200">
+    <circle cx="0" cy="0" r="534" fill="#eee" />
+    <!-- circle cx="0" cy="0" r="263" fill="#fff" />
+    <circle cx="0" cy="-272" r="262" fill="#ddd" /-->
+  </svg>
+</body>
+<script>
+"use strict";
+
+const UNIT_ANGLE = 15;
+const UNIT_ANGLE_RAD = Math.PI / 12;
+const DIMENSIONS = [];
+const OLYMPIC_POSS = [];
+const PARALYMPIC_POSS = [];
+
+const deg2Rad = θ => θ * Math.PI / 180;
+const rad2Deg = θ => θ * 180 / Math.PI;
+
+const fCSVGE = name => document.createElementNS('http://www.w3.org/2000/svg', name);
+
+function init() {
+  DIMENSIONS.push(new Dimensions(100,     100   ));
+  DIMENSIONS.push(new Dimensions(122.472,  70.71));
+  DIMENSIONS.push(new Dimensions(136.6,    36.6 ));
+
+  OLYMPIC_POSS.push(...generateOlympicLogoPositions());
+  PARALYMPIC_POSS.push(...generateParalympicLogoPositions());
+
+  const svg = document.querySelector('svg');
+  for (const posRect of OLYMPIC_POSS) {
+    const rect = fCSVGE('rect');
+    rect.setAttribute('x', -DIMENSIONS[posRect.type].w / 2);
+    rect.setAttribute('y', -DIMENSIONS[posRect.type].h / 2);
+    rect.setAttribute('width' , DIMENSIONS[posRect.type].w);
+    rect.setAttribute('height', DIMENSIONS[posRect.type].h);
+    rect.setAttribute('transform', `translate(${posRect.pos.x} ${posRect.pos.y}) rotate(${posRect.rot})`);
+    svg.appendChild(rect);
+  }
+}
+
+function generateOlympicLogoPositions() {
+  const positions = [];
+
+  // 1 top square at (0,0)
+  positions.push(new PositionedRectangle(0, new Point(0, 0), 0));
+
+  // Calculate top isosceles trapezoid height and leg angle
+  const topTrapezoidLegWidth = (DIMENSIONS[2].w - DIMENSIONS[0].w) / 2;
+  const topTrapezoidHeight = Math.sqrt(DIMENSIONS[1].h**2 - topTrapezoidLegWidth**2);
+
+  // 1 topmost thin rectangle
+  const topThinRectangleY = -topTrapezoidHeight - (DIMENSIONS[0].h + DIMENSIONS[2].h) / 2;
+  positions.push(new PositionedRectangle(2, new Point(0, topThinRectangleY), 0));
+
+  // 4 top fat rectangles
+  const topFatRectangleX = (DIMENSIONS[0].w + topTrapezoidLegWidth + DIMENSIONS[1].w * Math.cos(UNIT_ANGLE_RAD)) / 2;
+  const topFatRectangleY = (DIMENSIONS[0].h + topTrapezoidHeight   - DIMENSIONS[1].w * Math.sin(UNIT_ANGLE_RAD)) / 2;
+  positions.push(new PositionedRectangle(1, new Point(+topFatRectangleX, +topFatRectangleY), -UNIT_ANGLE));
+  positions.push(new PositionedRectangle(1, new Point(+topFatRectangleX, -topFatRectangleY), +UNIT_ANGLE));
+  positions.push(new PositionedRectangle(1, new Point(-topFatRectangleX, +topFatRectangleY), +UNIT_ANGLE));
+  positions.push(new PositionedRectangle(1, new Point(-topFatRectangleX, -topFatRectangleY), -UNIT_ANGLE));
+
+  // 2 top side thin rectangles
+  const sideThinX = (DIMENSIONS[0].w + DIMENSIONS[2].w) / 2 + DIMENSIONS[1].w * Math.cos(UNIT_ANGLE_RAD);
+  positions.push(new PositionedRectangle(2, new Point(+sideThinX, 0), 0));
+  positions.push(new PositionedRectangle(2, new Point(-sideThinX, 0), 0));
+
+  // 3 top very tilted thin rectangles
+  const tiltedThinX = sideThinX + (DIMENSIONS[2].h * Math.sin(UNIT_ANGLE_RAD * 2) + DIMENSIONS[2].w * (1 - Math.cos(UNIT_ANGLE_RAD * 2))) / 2;
+  const tiltedThinY =             (DIMENSIONS[2].w * Math.sin(UNIT_ANGLE_RAD * 2) + DIMENSIONS[2].h * (1 + Math.cos(UNIT_ANGLE_RAD * 2))) / 2;
+  positions.push(new PositionedRectangle(2, new Point(+tiltedThinX, +tiltedThinY), -UNIT_ANGLE * 2));
+  positions.push(new PositionedRectangle(2, new Point(+tiltedThinX, -tiltedThinY), +UNIT_ANGLE * 2));
+  positions.push(new PositionedRectangle(2, new Point(-tiltedThinX, -tiltedThinY), -UNIT_ANGLE * 2));
+
+  // 1 top-left fat rectangle
+  const topLeftFatX = -topFatRectangleX - topTrapezoidLegWidth - DIMENSIONS[0].w - DIMENSIONS[1].w * Math.cos(UNIT_ANGLE_RAD);
+  positions.push(new PositionedRectangle(1, new Point(topLeftFatX, topFatRectangleY), -UNIT_ANGLE));
+
+  // 1 top-left square
+  const topLeftSquareY = (DIMENSIONS[0].h + DIMENSIONS[2].h) / 2 + topTrapezoidHeight;
+  positions.push(new PositionedRectangle(0, new Point(-sideThinX, topLeftSquareY), 0));
+
+  // 1 top-right square
+  const topRightSquareX = tiltedThinX + (DIMENSIONS[0].w + DIMENSIONS[2].w * Math.cos(UNIT_ANGLE_RAD * 2) + DIMENSIONS[2].h * Math.sin(UNIT_ANGLE_RAD * 2)) / 2;
+  const topRightSquareY = DIMENSIONS[0].h;
+  positions.push(new PositionedRectangle(0, new Point(topRightSquareX, topRightSquareY), 0));
+
+  // 1 top-right fat rectangle
+  const topRightFatX = topRightSquareX - topFatRectangleX;
+  const topRightFatY = topRightSquareY + topFatRectangleY;
+  positions.push(new PositionedRectangle(1, new Point(topRightFatX, topRightFatY), UNIT_ANGLE));
+
+  // Calculate positions of the other 2 "origin" squares
+  const topRightSquareBottomRightCornerX = topRightSquareX + DIMENSIONS[0].w / 2;
+  const topRightSquareBottomRightCornerY = topRightSquareY + DIMENSIONS[0].h / 2;
+  const topLeftFatBottomLeftCornerX = topLeftFatX - (DIMENSIONS[1].w * Math.cos(UNIT_ANGLE_RAD) - DIMENSIONS[1].h * Math.sin(UNIT_ANGLE_RAD)) / 2;
+  const topLeftFatBottomLeftCornerY = DIMENSIONS[0].h / 2 + topTrapezoidHeight;
+  const bottomLeftOriginY = topLeftFatBottomLeftCornerY + topRightSquareBottomRightCornerX * Math.cos(-UNIT_ANGLE_RAD * 2) - topRightSquareBottomRightCornerY * Math.sin(-UNIT_ANGLE_RAD * 2);
+  const bottomLeftOriginX = topLeftFatBottomLeftCornerX - topRightSquareBottomRightCornerX * Math.sin(-UNIT_ANGLE_RAD * 2) - topRightSquareBottomRightCornerY * Math.cos(-UNIT_ANGLE_RAD * 2);
+  const bottomRightOriginY = topRightSquareBottomRightCornerY - topLeftFatBottomLeftCornerX * Math.cos(UNIT_ANGLE_RAD * 2) + topLeftFatBottomLeftCornerY * Math.sin(UNIT_ANGLE_RAD * 2);
+  const bottomRightOriginX = topRightSquareBottomRightCornerX + topLeftFatBottomLeftCornerX * Math.sin(UNIT_ANGLE_RAD * 2) + topLeftFatBottomLeftCornerY * Math.cos(UNIT_ANGLE_RAD * 2);
+
+  // Replicate to bottom left
+  const bottomLeftPositions = [];
+  const rot1 = -2 / 3 * Math.PI;
+  for (const rect of positions) {
+    bottomLeftPositions.push(new PositionedRectangle(
+      rect.type,
+      new Point(
+        bottomLeftOriginX + rect.pos.x * Math.cos(rot1) - rect.pos.y * Math.sin(rot1),
+        bottomLeftOriginY + rect.pos.x * Math.sin(rot1) + rect.pos.y * Math.cos(rot1)
+      ),
+      rect.rot - 120
+    ));
+  }
+
+  // Replicate to bottom right
+  const bottomRightPositions = [];
+  const rot2 = 2 / 3 * Math.PI;
+  for (const rect of positions) {
+    bottomRightPositions.push(new PositionedRectangle(
+      rect.type,
+      new Point(
+        bottomRightOriginX + rect.pos.x * Math.cos(rot2) - rect.pos.y * Math.sin(rot2),
+        bottomRightOriginY + rect.pos.x * Math.sin(rot2) + rect.pos.y * Math.cos(rot2)
+      ),
+      rect.rot + 120
+    ));
+  }
+
+  positions.push(...bottomLeftPositions);
+  positions.push(...bottomRightPositions);
+
+  // Normalize all angles to be in the [0, 90) interval for type 0 and [0, 180) interval for types 1 to 2
+  for (const rect of positions) {
+    rect.rot = (rect.rot + 720) % (rect.type === 0 ? 90 : 180);
+  }
+
+  // Recenter whole wreath into (0,0)
+  const deltaOriginY = -(bottomLeftPositions[0].pos.y + bottomRightPositions[0].pos.y) / 3;
+  for (const rect of positions) {
+    rect.pos.y += deltaOriginY;
+  }
+
+  return positions;
+}
+
+function generateParalympicLogoPositions() {
+  const positions = [];
+
+  // 3 middle thin rectangles
+  positions.push(new PositionedRectangle(2, new Point(0, DIMENSIONS[2].h), 0));
+  positions.push(new PositionedRectangle(2, new Point(+DIMENSIONS[2].w, 0), 0));
+  positions.push(new PositionedRectangle(2, new Point(-DIMENSIONS[2].w, 0), 0));
+
+  // Calculate the height and leg widths to the 3 types of trapezoids
+  const shortTrapezoidLegWidth = (DIMENSIONS[2].w - DIMENSIONS[0].w) / 2;
+  const shortTrapezoidHeight = Math.sqrt(DIMENSIONS[1].h ** 2 - shortTrapezoidLegWidth ** 2);
+  const mediumTrapezoidLegWidth = (DIMENSIONS[1].w - DIMENSIONS[1].h) / 2;
+  const mediumTrapezoidHeight = Math.sqrt(DIMENSIONS[0].w ** 2 - mediumTrapezoidLegWidth ** 2);
+  const tallTrapezoidLegWidth = (DIMENSIONS[0].h - DIMENSIONS[2].h) / 2;
+  const tallTrapezoidHeight = Math.sqrt(DIMENSIONS[1].w ** 2 - tallTrapezoidLegWidth ** 2);
+
+  // 4 side inner fat rectangles
+  const sideInnerFatX = 1.5 * DIMENSIONS[2].w + (tallTrapezoidHeight   - DIMENSIONS[1].h * Math.sin(UNIT_ANGLE_RAD)) / 2;
+  const sideInnerFatY =      (DIMENSIONS[2].h +  tallTrapezoidLegWidth + DIMENSIONS[1].h * Math.cos(UNIT_ANGLE_RAD)) / 2;
+  positions.push(new PositionedRectangle(1, new Point(+sideInnerFatX, +sideInnerFatY), +UNIT_ANGLE));
+  positions.push(new PositionedRectangle(1, new Point(+sideInnerFatX, -sideInnerFatY), -UNIT_ANGLE));
+  positions.push(new PositionedRectangle(1, new Point(-sideInnerFatX, +sideInnerFatY), -UNIT_ANGLE));
+  positions.push(new PositionedRectangle(1, new Point(-sideInnerFatX, -sideInnerFatY), +UNIT_ANGLE));
+
+  // 2 bottom inner fat rectangles
+  const bottomInnerFatX =      (DIMENSIONS[0].w +  shortTrapezoidLegWidth + DIMENSIONS[1].w * Math.cos(UNIT_ANGLE_RAD)) / 2;
+  const bottomInnerFatY = 1.5 * DIMENSIONS[2].h + (shortTrapezoidHeight   + DIMENSIONS[1].w * Math.sin(UNIT_ANGLE_RAD)) / 2;
+  positions.push(new PositionedRectangle(1, new Point(+bottomInnerFatX, bottomInnerFatY), +UNIT_ANGLE));
+  positions.push(new PositionedRectangle(1, new Point(-bottomInnerFatX, bottomInnerFatY), -UNIT_ANGLE));
+
+  // 1 bottom square
+  const bottomSquareY = 1.5 * DIMENSIONS[2].h + shortTrapezoidHeight + DIMENSIONS[0].h / 2;
+  positions.push(new PositionedRectangle(0, new Point(0, bottomSquareY), 0));
+
+  // 2 side squares
+  const sideSquareX = 1.5 * DIMENSIONS[2].w + tallTrapezoidHeight + DIMENSIONS[0].w / 2;
+  positions.push(new PositionedRectangle(0, new Point(+sideSquareX, 0), 0));
+  positions.push(new PositionedRectangle(0, new Point(-sideSquareX, 0), 0));
+
+  // 4 tilted side squares
+  const tiltedSideSquareX = sideSquareX * Math.cos(UNIT_ANGLE_RAD * 2);
+  const tiltedSideSquareY = sideSquareX * Math.sin(UNIT_ANGLE_RAD * 2);
+  positions.push(new PositionedRectangle(0, new Point(+tiltedSideSquareX, +tiltedSideSquareY), +UNIT_ANGLE * 2));
+  positions.push(new PositionedRectangle(0, new Point(+tiltedSideSquareX, -tiltedSideSquareY), -UNIT_ANGLE * 2));
+  positions.push(new PositionedRectangle(0, new Point(-tiltedSideSquareX, +tiltedSideSquareY), -UNIT_ANGLE * 2));
+  positions.push(new PositionedRectangle(0, new Point(-tiltedSideSquareX, -tiltedSideSquareY), +UNIT_ANGLE * 2));
+
+  // 2 tilted bottom squares
+  const tiltedBottomSquareX = tiltedSideSquareX - Math.SQRT2 * DIMENSIONS[0].w * Math.cos(UNIT_ANGLE_RAD);
+  const tiltedBottomSquareY = tiltedSideSquareY + Math.SQRT2 * DIMENSIONS[0].w * Math.sin(UNIT_ANGLE_RAD);
+  positions.push(new PositionedRectangle(0, new Point(+tiltedBottomSquareX, tiltedBottomSquareY), +UNIT_ANGLE * 2));
+  positions.push(new PositionedRectangle(0, new Point(-tiltedBottomSquareX, tiltedBottomSquareY), -UNIT_ANGLE * 2));
+
+  // 2 bottom fat rectangles
+  const bottomFatX = (DIMENSIONS[2].h + tallTrapezoidLegWidth + DIMENSIONS[1].h * Math.cos(UNIT_ANGLE_RAD)) / 2;
+  const bottomFatY = bottomSquareY + (DIMENSIONS[0].h + tallTrapezoidHeight + DIMENSIONS[1].h * Math.sin(UNIT_ANGLE_RAD)) / 2;
+  positions.push(new PositionedRectangle(1, new Point(+bottomFatX, bottomFatY), -UNIT_ANGLE * 5));
+  positions.push(new PositionedRectangle(1, new Point(-bottomFatX, bottomFatY), +UNIT_ANGLE * 5));
+
+  // 4 side fat rectangles
+  const sideFatX = sideInnerFatX + (mediumTrapezoidHeight + (DIMENSIONS[1].w + DIMENSIONS[1].h) / 2) * Math.cos(UNIT_ANGLE_RAD);
+  const sideFatY = sideInnerFatY + (mediumTrapezoidHeight + (DIMENSIONS[1].w + DIMENSIONS[1].h) / 2) * Math.sin(UNIT_ANGLE_RAD);
+  positions.push(new PositionedRectangle(1, new Point(+sideFatX, +sideFatY), -UNIT_ANGLE * 5));
+  positions.push(new PositionedRectangle(1, new Point(+sideFatX, -sideFatY), +UNIT_ANGLE * 5));
+  positions.push(new PositionedRectangle(1, new Point(-sideFatX, +sideFatY), +UNIT_ANGLE * 5));
+  positions.push(new PositionedRectangle(1, new Point(-sideFatX, -sideFatY), -UNIT_ANGLE * 5));
+
+  // 4 45-degree fat rectangles
+  const rect45XY = Math.hypot(sideFatX, sideFatY) * Math.SQRT1_2;
+  positions.push(new PositionedRectangle(1, new Point(+rect45XY, +rect45XY), -UNIT_ANGLE * 3));
+  positions.push(new PositionedRectangle(1, new Point(+rect45XY, -rect45XY), +UNIT_ANGLE * 3));
+  positions.push(new PositionedRectangle(1, new Point(-rect45XY, +rect45XY), +UNIT_ANGLE * 3));
+  positions.push(new PositionedRectangle(1, new Point(-rect45XY, -rect45XY), -UNIT_ANGLE * 3));
+
+  // 2 remaining bottom fat rectangles
+  const bottomFat2X = rect45XY - Math.SQRT1_2 * (DIMENSIONS[1].h + DIMENSIONS[1].w);
+  const bottomFat2Y = rect45XY + Math.SQRT1_2 * (DIMENSIONS[1].w - DIMENSIONS[1].h);
+  positions.push(new PositionedRectangle(1, new Point(+bottomFat2X, bottomFat2Y), -UNIT_ANGLE * 3));
+  positions.push(new PositionedRectangle(1, new Point(-bottomFat2X, bottomFat2Y), +UNIT_ANGLE * 3));
+
+  // 2 side thin rectangles
+  const sideThinX = sideSquareX + (DIMENSIONS[0].w + DIMENSIONS[2].h) / 2 + shortTrapezoidHeight;
+  positions.push(new PositionedRectangle(2, new Point(+sideThinX, 0), UNIT_ANGLE * 6));
+  positions.push(new PositionedRectangle(2, new Point(-sideThinX, 0), UNIT_ANGLE * 6));
+
+  // 8 remaining outer thin rectangles
+  for (const multiple of [2, 4]) {
+    const x = sideThinX * Math.cos(UNIT_ANGLE_RAD * multiple);
+    const y = sideThinX * Math.sin(UNIT_ANGLE_RAD * multiple);
+    positions.push(new PositionedRectangle(2, new Point(+x, +y), -UNIT_ANGLE * (6 - multiple)));
+    positions.push(new PositionedRectangle(2, new Point(+x, -y), +UNIT_ANGLE * (6 - multiple)));
+    positions.push(new PositionedRectangle(2, new Point(-x, -y), -UNIT_ANGLE * (6 - multiple)));
+    positions.push(new PositionedRectangle(2, new Point(-x, +y), +UNIT_ANGLE * (6 - multiple)));
+  }
+
+  // 1 bottom thin rectangle
+  const bottomThinY = bottomSquareY + (DIMENSIONS[0].h + DIMENSIONS[2].w) / 2 + tallTrapezoidHeight;
+  positions.push(new PositionedRectangle(2, new Point(0, bottomThinY), UNIT_ANGLE * 6));
+
+  // 2 bottom inner thin rectangles
+  const bottomInnerThinX =               (DIMENSIONS[2].h * (1 + Math.cos(UNIT_ANGLE_RAD * 2)) + DIMENSIONS[2].w * Math.sin(UNIT_ANGLE_RAD * 2)) / 2;
+  const bottomInnerThinY = bottomThinY + (DIMENSIONS[2].w * (1 - Math.cos(UNIT_ANGLE_RAD * 2)) + DIMENSIONS[2].h * Math.sin(UNIT_ANGLE_RAD * 2)) / 2;
+  positions.push(new PositionedRectangle(2, new Point(+bottomInnerThinX, bottomInnerThinY), -UNIT_ANGLE * 4));
+  positions.push(new PositionedRectangle(2, new Point(-bottomInnerThinX, bottomInnerThinY), +UNIT_ANGLE * 4));
+
+  // 2 bottom outer thin rectangles
+  const bottomOuterThinX =               (DIMENSIONS[2].h * (1 + 2 * Math.cos(UNIT_ANGLE_RAD * 2) + Math.cos(UNIT_ANGLE_RAD * 4)) + DIMENSIONS[2].w * Math.sin(UNIT_ANGLE_RAD * 4))  / 2;
+  const bottomOuterThinY = bottomThinY + (DIMENSIONS[2].w * (1 - Math.cos(UNIT_ANGLE_RAD * 4)) + DIMENSIONS[2].h * (2 * Math.sin(UNIT_ANGLE_RAD * 2) + Math.sin(UNIT_ANGLE_RAD* 4))) / 2;
+  positions.push(new PositionedRectangle(2, new Point(+bottomOuterThinX, bottomOuterThinY), -UNIT_ANGLE * 2));
+  positions.push(new PositionedRectangle(2, new Point(-bottomOuterThinX, bottomOuterThinY), +UNIT_ANGLE * 2));
+
+  return positions;
+}
+
+class PositionedRectangle {
+  constructor(type, pos, rot) {
+    // Numeric index to DIMENSIONS
+    this.type = type;
+
+    // Position of the rectangle's center as a Point object
+    this.pos = pos;
+
+    // Rotation of the rectangle in degrees, going clockwise
+    this.rot = rot;
+  }
+}
+
+class Dimensions {
+  constructor(w, h) {
+    this.w = w;
+    this.h = h;
+  }
+}
+
+class Point {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+
+init();
+
+</script>
+</body>
+</html>
