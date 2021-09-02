@@ -6,23 +6,49 @@
 html, body {
   margin: 0;
   padding: 0;
+  background: #111824;
 }
 
 svg {
-  width: 100vh;
+  position: absolute;
+  display: block;
+  margin: auto;
+}
+
+rect, #outer, #inner {
+  transition-duration: 2s;
+  transition-timing-function: cubic-bezier(.65,.05,.36,1);
 }
 
 rect {
-  fill: #202b5a;
+  fill: #58c;
+  transition-property: transform;
 }
+
+#outer {
+  display: none;
+  position: absolute;
+  transition-property: border-radius, width, height, top, left;
+  background-color: #fff;
+}
+
+#inner {
+  display: none;
+  position: absolute;
+  transition-property: width, height, top, left;
+  background-color: #fff;
+}
+
+
 </style>
 </head>
 <body>
-  <svg viewBox="-600 -600 1200 1200">
-    <circle cx="0" cy="0" r="534" fill="#eee" />
-    <!-- circle cx="0" cy="0" r="263" fill="#fff" />
+  <div id="outer"></div>
+  <div id="inner"></div>
+  <svg viewBox="-600 -600 1200 1200"></svg>
+  <!--circle cx="0" cy="0" r="534" fill="#eee" />
+    <circle cx="0" cy="0" r="263" fill="#fff" />
     <circle cx="0" cy="-272" r="262" fill="#ddd" /-->
-  </svg>
 </body>
 <script>
 "use strict";
@@ -30,11 +56,24 @@ rect {
 const UNIT_ANGLE = 15;
 const UNIT_ANGLE_RAD = Math.PI / 12;
 const DIMENSIONS = [];
+
 const OLYMPIC_POSS = [];
 const PARALYMPIC_POSS = [];
+const CHECKERED_POSS = [];
 
-const deg2Rad = θ => θ * Math.PI / 180;
-const rad2Deg = θ => θ * 180 / Math.PI;
+const SVG_WIDTH = 1200;
+
+const DESIGNS = {
+  olympic:    { positions: OLYMPIC_POSS   , circles: [1068, 1068, 534,    0, 263] },
+  paralympic: { positions: PARALYMPIC_POSS, circles: [1068, 1068, 534, -272, 262] },
+  checkered:  { positions: CHECKERED_POSS , circles: [ 900, 1000,   0,    0,   0] },
+};
+
+const OuterDiv = document.getElementById('outer');
+const InnerDiv = document.getElementById('inner');
+
+let CurrentDesign = 'olympic';
+let PhysicalWidth;
 
 const fCSVGE = name => document.createElementNS('http://www.w3.org/2000/svg', name);
 
@@ -45,17 +84,69 @@ function init() {
 
   OLYMPIC_POSS.push(...generateOlympicLogoPositions());
   PARALYMPIC_POSS.push(...generateParalympicLogoPositions());
+  CHECKERED_POSS.push(...generateCheckeredDesignPositions());
+
+  PhysicalWidth = Math.min(window.innerHeight, window.innerWidth);
 
   const svg = document.querySelector('svg');
+  svg.style.width = `${PhysicalWidth}px`;
+  svg.style.top = `${(window.innerHeight - PhysicalWidth) / 2}px`;
+  svg.style.left = `${(window.innerWidth - PhysicalWidth) / 2}px`;
+  let idx = 0;
   for (const posRect of OLYMPIC_POSS) {
     const rect = fCSVGE('rect');
     rect.setAttribute('x', -DIMENSIONS[posRect.type].w / 2);
     rect.setAttribute('y', -DIMENSIONS[posRect.type].h / 2);
     rect.setAttribute('width' , DIMENSIONS[posRect.type].w);
     rect.setAttribute('height', DIMENSIONS[posRect.type].h);
-    rect.setAttribute('transform', `translate(${posRect.pos.x} ${posRect.pos.y}) rotate(${posRect.rot})`);
+    rect.style.transform = `translate(${posRect.pos.x}px, ${posRect.pos.y}px) rotate(${posRect.rot}deg)`;
+    rect._type = posRect.type;
+    rect._rot = posRect.rot;
     svg.appendChild(rect);
   }
+
+  OuterDiv.style.width = `${PhysicalWidth / SVG_WIDTH * DESIGNS.olympic.circles[0]}px`;
+  OuterDiv.style.height = `${PhysicalWidth / SVG_WIDTH * DESIGNS.olympic.circles[1]}px`;
+  OuterDiv.style.borderRadius = `${PhysicalWidth / SVG_WIDTH * DESIGNS.olympic.circles[2]}px`
+  OuterDiv.style.top = `${(window.innerHeight - PhysicalWidth / SVG_WIDTH * DESIGNS.olympic.circles[0]) / 2}px`;
+  OuterDiv.style.left = `${(window.innerWidth - PhysicalWidth / SVG_WIDTH * DESIGNS.olympic.circles[1]) / 2}px`;
+
+  const designLabels = Object.keys(DESIGNS);
+  setInterval(() => {
+    let nextDesign = null;
+    while (nextDesign === null || nextDesign === CurrentDesign)
+      nextDesign = designLabels[Math.floor(Math.random() * designLabels.length)];
+    initMorph(nextDesign);
+    CurrentDesign = nextDesign;
+  }, 4000);
+}
+
+function initMorph(nextDesign) {
+
+  const svgRects = [...document.querySelectorAll('rect')];
+
+  // Collect the 3 rectangle types of SVG elements and the next design
+  const svgRectTypes = [];
+  const designTypes = [];
+  for (const type of [0, 1, 2]) {
+    designTypes[type] = DESIGNS[nextDesign].positions.filter(rect => rect.type === type);
+    shuffle(designTypes[type]);
+  }
+
+  const order = [];
+  for (let i = 0; i < svgRects.length; i++) order.push(i);
+  shuffle(order);
+
+  const animateFrame = () => {
+    const idx = order.pop();
+    const svgRect = svgRects[idx];
+    const newPos = designTypes[svgRect._type].pop();
+    const scaling = nextDesign === 'checkered' && svgRect._type != 0 ? `scale(${100 / DIMENSIONS[svgRect._type].w},${100 / DIMENSIONS[svgRect._type].h})` : '';
+    svgRects[idx].style.transform = `translate(${newPos.pos.x}px, ${newPos.pos.y}px) rotate(${newPos.rot}deg) ${scaling}`;
+    if (order.length > 0) requestAnimationFrame(animateFrame);
+  }
+
+  requestAnimationFrame(animateFrame);
 }
 
 function generateOlympicLogoPositions() {
@@ -276,7 +367,38 @@ function generateParalympicLogoPositions() {
   positions.push(new PositionedRectangle(2, new Point(+bottomOuterThinX, bottomOuterThinY), -UNIT_ANGLE * 2));
   positions.push(new PositionedRectangle(2, new Point(-bottomOuterThinX, bottomOuterThinY), +UNIT_ANGLE * 2));
 
+  // Normalize all angles to be in the [0, 90) interval for type 0 and [0, 180) interval for types 1 to 2
+  for (const rect of positions) {
+    rect.rot = (rect.rot + 720) % (rect.type === 0 ? 90 : 180);
+  }
+
   return positions;
+}
+
+function generateCheckeredDesignPositions() {
+  const positions = [];
+
+  for (let i = 0; i < 9; i++) {
+    positions.push(new PositionedRectangle(0, new Point(-400 + i * 100, -450 + (i % 2) * 100), 0));
+    positions.push(new PositionedRectangle(1, new Point(-400 + i * 100, -250 + (i % 2) * 100), 0));
+    positions.push(new PositionedRectangle(1, new Point(-400 + i * 100,  -50 + (i % 2) * 100), 0));
+    positions.push(new PositionedRectangle(2, new Point(-400 + i * 100,  150 + (i % 2) * 100), 0));
+    positions.push(new PositionedRectangle(2, new Point(-400 + i * 100,  350 + (i % 2) * 100), 0));
+  }
+
+  return positions;
+}
+
+// In-place shuffle
+function shuffle(array) {
+  let idx = array.length, rIdx, item;
+
+  while (idx > 0) {
+    rIdx = Math.floor(Math.random() * idx--);
+    item = array[idx];
+    array[idx] = array[rIdx];
+    array[rIdx] = item;
+  }
 }
 
 class PositionedRectangle {
