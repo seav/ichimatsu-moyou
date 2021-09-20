@@ -45,7 +45,7 @@ rect {
 <body>
   <div id="outer"></div>
   <div id="inner"></div>
-  <svg viewBox="-600 -600 1200 1200"></svg>
+  <svg></svg>
   <!--circle cx="0" cy="0" r="534" fill="#eee" />
     <circle cx="0" cy="0" r="263" fill="#fff" />
     <circle cx="0" cy="-272" r="262" fill="#ddd" /-->
@@ -53,6 +53,7 @@ rect {
 <script>
 "use strict";
 
+const UNIT_LENGTH = 100;
 const UNIT_ANGLE = 15;
 const UNIT_ANGLE_RAD = Math.PI / 12;
 const DIMENSIONS = [];
@@ -61,7 +62,7 @@ const OLYMPIC_POSS = [];
 const PARALYMPIC_POSS = [];
 const CHECKERED_POSS = [];
 
-const SVG_WIDTH = 1200;
+const SVG_WIDTH = 800;
 
 const DESIGNS = {
   olympic:    { positions: OLYMPIC_POSS   , circles: [1068, 1068, 534,    0, 263] },
@@ -69,6 +70,7 @@ const DESIGNS = {
   checkered:  { positions: CHECKERED_POSS , circles: [ 900, 1000,   0,    0,   0] },
 };
 
+const Svg = document.querySelector('svg');
 const OuterDiv = document.getElementById('outer');
 const InnerDiv = document.getElementById('inner');
 
@@ -78,9 +80,13 @@ let PhysicalWidth;
 const fCSVGE = name => document.createElementNS('http://www.w3.org/2000/svg', name);
 
 function init() {
-  DIMENSIONS.push(new Dimensions(100,     100   ));
-  DIMENSIONS.push(new Dimensions(122.472,  70.71));
-  DIMENSIONS.push(new Dimensions(136.6,    36.6 ));
+  for (let i = 3; i > 0; i--) {
+    const angle = UNIT_ANGLE_RAD * i;
+    DIMENSIONS.push(new Dimensions(
+      UNIT_LENGTH * Math.cos(angle),
+      UNIT_LENGTH * Math.sin(angle),
+    ));
+  }
 
   OLYMPIC_POSS.push(...generateOlympicLogoPositions());
   PARALYMPIC_POSS.push(...generateParalympicLogoPositions());
@@ -88,10 +94,10 @@ function init() {
 
   PhysicalWidth = Math.min(window.innerHeight, window.innerWidth);
 
-  const svg = document.querySelector('svg');
-  svg.style.width = `${PhysicalWidth}px`;
-  svg.style.top = `${(window.innerHeight - PhysicalWidth) / 2}px`;
-  svg.style.left = `${(window.innerWidth - PhysicalWidth) / 2}px`;
+  Svg.setAttribute('viewBox', `${-SVG_WIDTH / 2} ${-SVG_WIDTH / 2} ${SVG_WIDTH} ${SVG_WIDTH}`)
+  Svg.style.width = `${PhysicalWidth}px`;
+  Svg.style.top = `${(window.innerHeight - PhysicalWidth) / 2}px`;
+  Svg.style.left = `${(window.innerWidth - PhysicalWidth) / 2}px`;
   let idx = 0;
   for (const posRect of OLYMPIC_POSS) {
     const rect = fCSVGE('rect');
@@ -102,7 +108,7 @@ function init() {
     rect.style.transform = `translate(${posRect.pos.x}px, ${posRect.pos.y}px) rotate(${posRect.rot}deg)`;
     rect._type = posRect.type;
     rect._rot = posRect.rot;
-    svg.appendChild(rect);
+    Svg.appendChild(rect);
   }
 
   OuterDiv.style.width = `${PhysicalWidth / SVG_WIDTH * DESIGNS.olympic.circles[0]}px`;
@@ -141,7 +147,7 @@ function initMorph(nextDesign) {
     const idx = order.pop();
     const svgRect = svgRects[idx];
     const newPos = designTypes[svgRect._type].pop();
-    const scaling = nextDesign === 'checkered' && svgRect._type != 0 ? `scale(${100 / DIMENSIONS[svgRect._type].w},${100 / DIMENSIONS[svgRect._type].h})` : '';
+    const scaling = nextDesign === 'checkered' ? `scale(${100 / DIMENSIONS[svgRect._type].w},${100 / DIMENSIONS[svgRect._type].h})` : '';
     svgRects[idx].style.transform = `translate(${newPos.pos.x}px, ${newPos.pos.y}px) rotate(${newPos.rot}deg) ${scaling}`;
     if (order.length > 0) requestAnimationFrame(animateFrame);
   }
@@ -152,105 +158,47 @@ function initMorph(nextDesign) {
 function generateOlympicLogoPositions() {
   const positions = [];
 
-  // 1 top square at (0,0)
-  positions.push(new PositionedRectangle(0, new Point(0, 0), 0));
-
-  // Calculate top isosceles trapezoid height and leg angle
-  const topTrapezoidLegWidth = (DIMENSIONS[2].w - DIMENSIONS[0].w) / 2;
-  const topTrapezoidHeight = Math.sqrt(DIMENSIONS[1].h**2 - topTrapezoidLegWidth**2);
-
-  // 1 topmost thin rectangle
-  const topThinRectangleY = -topTrapezoidHeight - (DIMENSIONS[0].h + DIMENSIONS[2].h) / 2;
-  positions.push(new PositionedRectangle(2, new Point(0, topThinRectangleY), 0));
-
-  // 4 top fat rectangles
-  const topFatRectangleX = (DIMENSIONS[0].w + topTrapezoidLegWidth + DIMENSIONS[1].w * Math.cos(UNIT_ANGLE_RAD)) / 2;
-  const topFatRectangleY = (DIMENSIONS[0].h + topTrapezoidHeight   - DIMENSIONS[1].w * Math.sin(UNIT_ANGLE_RAD)) / 2;
-  positions.push(new PositionedRectangle(1, new Point(+topFatRectangleX, +topFatRectangleY), -UNIT_ANGLE));
-  positions.push(new PositionedRectangle(1, new Point(+topFatRectangleX, -topFatRectangleY), +UNIT_ANGLE));
-  positions.push(new PositionedRectangle(1, new Point(-topFatRectangleX, +topFatRectangleY), +UNIT_ANGLE));
-  positions.push(new PositionedRectangle(1, new Point(-topFatRectangleX, -topFatRectangleY), -UNIT_ANGLE));
-
-  // 2 top side thin rectangles
-  const sideThinX = (DIMENSIONS[0].w + DIMENSIONS[2].w) / 2 + DIMENSIONS[1].w * Math.cos(UNIT_ANGLE_RAD);
-  positions.push(new PositionedRectangle(2, new Point(+sideThinX, 0), 0));
-  positions.push(new PositionedRectangle(2, new Point(-sideThinX, 0), 0));
-
-  // 3 top very tilted thin rectangles
-  const tiltedThinX = sideThinX + (DIMENSIONS[2].h * Math.sin(UNIT_ANGLE_RAD * 2) + DIMENSIONS[2].w * (1 - Math.cos(UNIT_ANGLE_RAD * 2))) / 2;
-  const tiltedThinY =             (DIMENSIONS[2].w * Math.sin(UNIT_ANGLE_RAD * 2) + DIMENSIONS[2].h * (1 + Math.cos(UNIT_ANGLE_RAD * 2))) / 2;
-  positions.push(new PositionedRectangle(2, new Point(+tiltedThinX, +tiltedThinY), -UNIT_ANGLE * 2));
-  positions.push(new PositionedRectangle(2, new Point(+tiltedThinX, -tiltedThinY), +UNIT_ANGLE * 2));
-  positions.push(new PositionedRectangle(2, new Point(-tiltedThinX, -tiltedThinY), -UNIT_ANGLE * 2));
-
-  // 1 top-left fat rectangle
-  const topLeftFatX = -topFatRectangleX - topTrapezoidLegWidth - DIMENSIONS[0].w - DIMENSIONS[1].w * Math.cos(UNIT_ANGLE_RAD);
-  positions.push(new PositionedRectangle(1, new Point(topLeftFatX, topFatRectangleY), -UNIT_ANGLE));
-
-  // 1 top-left square
-  const topLeftSquareY = (DIMENSIONS[0].h + DIMENSIONS[2].h) / 2 + topTrapezoidHeight;
-  positions.push(new PositionedRectangle(0, new Point(-sideThinX, topLeftSquareY), 0));
-
-  // 1 top-right square
-  const topRightSquareX = tiltedThinX + (DIMENSIONS[0].w + DIMENSIONS[2].w * Math.cos(UNIT_ANGLE_RAD * 2) + DIMENSIONS[2].h * Math.sin(UNIT_ANGLE_RAD * 2)) / 2;
-  const topRightSquareY = DIMENSIONS[0].h;
-  positions.push(new PositionedRectangle(0, new Point(topRightSquareX, topRightSquareY), 0));
-
-  // 1 top-right fat rectangle
-  const topRightFatX = topRightSquareX - topFatRectangleX;
-  const topRightFatY = topRightSquareY + topFatRectangleY;
-  positions.push(new PositionedRectangle(1, new Point(topRightFatX, topRightFatY), UNIT_ANGLE));
-
-  // Calculate positions of the other 2 "origin" squares
-  const topRightSquareBottomRightCornerX = topRightSquareX + DIMENSIONS[0].w / 2;
-  const topRightSquareBottomRightCornerY = topRightSquareY + DIMENSIONS[0].h / 2;
-  const topLeftFatBottomLeftCornerX = topLeftFatX - (DIMENSIONS[1].w * Math.cos(UNIT_ANGLE_RAD) - DIMENSIONS[1].h * Math.sin(UNIT_ANGLE_RAD)) / 2;
-  const topLeftFatBottomLeftCornerY = DIMENSIONS[0].h / 2 + topTrapezoidHeight;
-  const bottomLeftOriginY = topLeftFatBottomLeftCornerY + topRightSquareBottomRightCornerX * Math.cos(-UNIT_ANGLE_RAD * 2) - topRightSquareBottomRightCornerY * Math.sin(-UNIT_ANGLE_RAD * 2);
-  const bottomLeftOriginX = topLeftFatBottomLeftCornerX - topRightSquareBottomRightCornerX * Math.sin(-UNIT_ANGLE_RAD * 2) - topRightSquareBottomRightCornerY * Math.cos(-UNIT_ANGLE_RAD * 2);
-  const bottomRightOriginY = topRightSquareBottomRightCornerY - topLeftFatBottomLeftCornerX * Math.cos(UNIT_ANGLE_RAD * 2) + topLeftFatBottomLeftCornerY * Math.sin(UNIT_ANGLE_RAD * 2);
-  const bottomRightOriginX = topRightSquareBottomRightCornerX + topLeftFatBottomLeftCornerX * Math.sin(UNIT_ANGLE_RAD * 2) + topLeftFatBottomLeftCornerY * Math.cos(UNIT_ANGLE_RAD * 2);
-
-  // Replicate to bottom left
-  const bottomLeftPositions = [];
-  const rot1 = -2 / 3 * Math.PI;
-  for (const rect of positions) {
-    bottomLeftPositions.push(new PositionedRectangle(
-      rect.type,
-      new Point(
-        bottomLeftOriginX + rect.pos.x * Math.cos(rot1) - rect.pos.y * Math.sin(rot1),
-        bottomLeftOriginY + rect.pos.x * Math.sin(rot1) + rect.pos.y * Math.cos(rot1)
-      ),
-      rect.rot - 120
-    ));
+  // Construct top third of the logo
+  const seedSquareY = -(DIMENSIONS[2].w * 1.5 + DIMENSIONS[1].w * Math.cos(UNIT_ANGLE_RAD) + DIMENSIONS[0].w / 2);
+  positions.push(new PositionedRectangle(0, new Point(0, seedSquareY), 0));  // seed: 1 middle square
+  const links = [
+    [ 0, 'tl', 1, 'br', -1],  //  1 - 4 middle thicks (TL, TR, BL, BR)
+    [ 0, 'tr', 1, 'bl', +1],  //  2
+    [ 0, 'bl', 1, 'tr', +1],  //  3
+    [ 0, 'br', 1, 'tl', -1],  //  4
+    [ 1, 'tr', 2, 'bl',  0],  //  5 - 1 topmost thin
+    [ 1, 'tl', 2, 'br', -2],  //  6 - 2 left thins (top to bottom)
+    [ 1, 'bl', 2, 'tr',  0],  //  7
+    [ 2, 'tr', 2, 'bl', +2],  //  8 - 3 right thins (top to bottom)
+    [ 2, 'br', 2, 'tl',  0],  //  9
+    [ 4, 'br', 2, 'tl', -2],  // 10
+    [ 7, 'bl', 1, 'tr', -1],  // 11 - 1 left thick
+    [ 3, 'bl', 0, 'tr',  0],  // 12 - 1 left square
+    [10, 'bl', 1, 'tl', +1],  // 13 - 1 right thick
+    [10, 'br', 0, 'tl',  0],  // 14 - 1 right square
+  ];
+  for (const link of links) {
+    positions.push(getRelativePosition(positions[link[0]], ...link.slice(1)));
   }
 
-  // Replicate to bottom right
-  const bottomRightPositions = [];
-  const rot2 = 2 / 3 * Math.PI;
-  for (const rect of positions) {
-    bottomRightPositions.push(new PositionedRectangle(
-      rect.type,
-      new Point(
-        bottomRightOriginX + rect.pos.x * Math.cos(rot2) - rect.pos.y * Math.sin(rot2),
-        bottomRightOriginY + rect.pos.x * Math.sin(rot2) + rect.pos.y * Math.cos(rot2)
-      ),
-      rect.rot + 120
-    ));
+  // Replicate twice
+  for (let i = 1; i < 3; i++) {
+    const rot = 2 / 3 * Math.PI * i;
+    for (const rect of positions.slice(0, 15)) {
+      positions.push(new PositionedRectangle(
+        rect.type,
+        new Point(
+          rect.pos.x * Math.cos(rot) - rect.pos.y * Math.sin(rot),
+          rect.pos.x * Math.sin(rot) + rect.pos.y * Math.cos(rot)
+        ),
+        rect.rot + rad2Deg(rot)
+      ));
+    }
   }
-
-  positions.push(...bottomLeftPositions);
-  positions.push(...bottomRightPositions);
 
   // Normalize all angles to be in the [0, 90) interval for type 0 and [0, 180) interval for types 1 to 2
   for (const rect of positions) {
     rect.rot = (rect.rot + 720) % (rect.type === 0 ? 90 : 180);
-  }
-
-  // Recenter whole wreath into (0,0)
-  const deltaOriginY = -(bottomLeftPositions[0].pos.y + bottomRightPositions[0].pos.y) / 3;
-  for (const rect of positions) {
-    rect.pos.y += deltaOriginY;
   }
 
   return positions;
@@ -389,6 +337,26 @@ function generateCheckeredDesignPositions() {
   return positions;
 }
 
+function getRelativePosition(baseRectangle, baseCorner, newRectangleType, newCorner, newRotationFactor) {
+  const baseDiagonalAngle =
+    deg2Rad(baseRectangle.rot)
+    + (baseCorner[1] === 'l' ? Math.PI : 0)
+    + ((baseCorner === 'tl' || baseCorner === 'br' ? 1 : -1) * (3 - baseRectangle.type) * UNIT_ANGLE_RAD);
+  const baseCornerPos = new Point(
+    baseRectangle.pos.x + UNIT_LENGTH / 2 * Math.cos(baseDiagonalAngle),
+    baseRectangle.pos.y + UNIT_LENGTH / 2 * Math.sin(baseDiagonalAngle),
+  );
+  const newDiagonalAngle =
+    newRotationFactor * UNIT_ANGLE_RAD
+    + (newCorner[1] === 'l' ? Math.PI : 0)
+    + ((newCorner === 'tl' || newCorner === 'br' ? 1 : -1) * (3 - newRectangleType) * UNIT_ANGLE_RAD);
+  const newCenter = new Point(
+    baseCornerPos.x - UNIT_LENGTH / 2 * Math.cos(newDiagonalAngle),
+    baseCornerPos.y - UNIT_LENGTH / 2 * Math.sin(newDiagonalAngle),
+  );
+  return new PositionedRectangle(newRectangleType, newCenter, newRotationFactor * UNIT_ANGLE);
+}
+
 // In-place shuffle
 function shuffle(array) {
   let idx = array.length, rIdx, item;
@@ -427,6 +395,9 @@ class Point {
     this.y = y;
   }
 }
+
+const deg2Rad = (deg) => Math.PI / 180 * deg;
+const rad2Deg = (rad) => 180 / Math.PI * rad;
 
 init();
 
